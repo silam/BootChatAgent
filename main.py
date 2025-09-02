@@ -12,7 +12,9 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 ####from openai_tools import create_openai_tools_chain
+from langchain.agents import create_openai_functions_agent, AgentExecutor # , tool_calling_agent_executor
 
+import requests
 
 load_dotenv()
 
@@ -104,8 +106,8 @@ def split_text(text: str, chunk_size: int = 800, overlap: int = 100) -> List[str
     return chunks
 
 @app.get("/healthz")
-def healthz():
-    return {"ok": True}
+def healthz(name: str):
+    return {"ok": name}
 
 @app.post("/ingest")
 def ingest(payload: IngestRequest):
@@ -202,6 +204,50 @@ def chat(payload: ChatRequest):
     #response = llm_with_tools.invoke(prompt)
     #print(response)
     # Call LLM via LangChain ChatOpenAI
+    ## Testing with bindtool getproduct price
+    ## going looop to calltools
+
+    if (False):
+        llm_with_tools = llm.bind_tools([get_product_price,fetch_price])
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "What is the price of product 002?"},
+        ]
+
+        # Invoke
+        resp = llm_with_tools.invoke(messages)
+
+        if resp.tool_calls:
+            for call in resp.tool_calls:
+                result = get_product_price.invoke(call["args"])
+                print("get_product_price:", result)
+                result = fetch_price.invoke(call["args"])
+                print("fetch price:", result)
+
+        print("LLM Response:", resp.content)
+        print("Tool Calls:", resp.tool_calls)
+
+
+    #Testing with agent call tools 
+    #get weather
+    if ( False):
+        prompt2 = ChatPromptTemplate.from_messages([
+            ("system", "You are a helpful assistant that can use tools."),
+            ("user", "What’s the weather in London?"),
+            ("placeholder", "{agent_scratchpad}")
+        ])  
+        # Create agent with tools
+        agent = create_openai_functions_agent(llm=llm, tools=[get_weather], prompt=prompt2)
+        
+        # Wrap in executor
+        agent_executor = AgentExecutor(agent=agent, tools=[get_weather], verbose=True)
+
+        result = agent_executor.invoke({"input": "What’s the weather in London?"})
+        print(result["output"])
+
+    #####################################################
+
+
     response = llm.invoke(prompt)
 
     # Bind tools + chain so LLM incorporates tool outputs
@@ -224,9 +270,58 @@ def chat(payload: ChatRequest):
         "matches": hits
     }
 
+@app.get("/id")
+def get_boot_image_by_recordid(recordid: str):
+    resp = {
+        "product-id": "00101",
+        "display-name": "Postman Oxford",
+        "short-description": "Men's Oxford in Black Chaparral Leather",
+        "long-description": "The Postman Oxford is celebrated for the all-day comfort that made it a favorite of mail carriers for decades. Traditional oxford construction and an all-black palette make the Postman a timeless Red Wing staple.",
+        "brand": "Red Wing Heritage - Men's",
+        "manufacturer-name": "Red Wing Shoes",
+        "manufacturer-sku": "00101",
+        "tax-class-id": "100500",
+        "page-title": "Men's Postman Oxford in Black Leather 101",
+        "page-description": "Traditional oxford construction and an all-black palette make the Postman Oxford shoe a timeless Red Wing staple. Shop Now at Heritage!",
+        "imagepath": [
+            "img/redwing/seolxobi3u/300x300px/RW00101C_MUL_N1_1115.jpeg",
+            "img/redwing/3uv7cherye/300x300px/RW00101C_MUL_N2_0315.jpeg",
+            "img/redwing/qmivhribdj/300x300px/RW00101C_MUL_N3_0315.jpeg",
+            "img/redwing/bzdrjex9ld/300x300px/RW00101C_MUL_N4_0315.jpeg",
+            "img/redwing/bnbgia6q2q/300x300px/RW00101C_MUL_N6_0315.jpeg",
+            "img/redwing/ltuyo7gqrc/300x300px/RW00101_MUL_N7_0822.jpeg",
+            "img/redwing/jsjelajh5z/300x300px/RW00101_MUL_N8_0822.jpeg",
+            "img/redwing/zxnzq8vbon/300x300px/RW00101_MUL_N9_0822.jpeg"
+        ]
+    }
+    return resp
     
+@tool
+def get_weather(city: str) -> str:
+    """Get the current weather in a given city."""
+    fake_weather = {
+        "New York": "Sunny, 28°C",
+        "London": "Cloudy, 19°C",
+        "Tokyo": "Rainy, 22°C"
+    }
+    return fake_weather.get(city, "Weather data not available")
 
 
+@tool
+def get_product_price(product_id: str) -> str:
+    """Get product price by product_id from MCP server"""
+    # response = requests.post(
+    #     "http://localhost:8000/get_product_price",  # MCP server
+    #     json={"product_id": product_id}
+    # )
+    # return response.json()
+    print("Tool is called")
+    fake_db = {
+        "001": "89.99 USD",
+        "002": "120.00 USD",
+        "003": "15.50 USD"
+    }
+    return fake_db.get(product_id, "Product not found")
 
 ############################################################
 ## GetPRice tool

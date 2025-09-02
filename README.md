@@ -18,7 +18,7 @@ collection = db["your_collection"]
 
 # Create the vector index
 collection.create_index(
-    [("embedding", "cosmosSearch")],
+    [("Vector", "cosmosSearch")],
     cosmosSearchOptions={
         "kind": "vector-ivf",
         "numLists": 800,
