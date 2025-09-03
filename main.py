@@ -13,6 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 ####from openai_tools import create_openai_tools_chain
 from langchain.agents import create_openai_functions_agent, AgentExecutor # , tool_calling_agent_executor
+import ast
 
 import requests
 
@@ -186,10 +187,13 @@ def chat(payload: ChatRequest):
     # Build context block
     context_parts = []
     used_ids = []
+    metadata        = []
     for h in hits:
         chunk_id = str(h.get("id", ""))
         context_parts.append(f"[{chunk_id}] {h.get('text','')}")
         used_ids.append(chunk_id)
+        metadata.append(f"{h.get('metadata',[])}")
+
     context_str = "\n\n".join(context_parts) if context_parts else "N/A"
 
     prompt = ChatPromptTemplate.from_messages([
@@ -263,15 +267,27 @@ def chat(payload: ChatRequest):
     # Run chain with invoke (final answer includes tool result)
     ####response = chain.invoke(prompt.format())
     #print(result["output"])
+    metadata = [ast.literal_eval(item) for item in metadata]
 
+    
+    print(metadata)
     return {
         "answer": response.content,
         "sources": used_ids,
-        "matches": hits
+        "matches": hits,
+        "metadata": metadata
     }
 
 @app.get("/id")
 def get_boot_image_by_recordid(recordid: str):
+
+    # print(recordid)
+
+    # recordid = recordid.replace(']','').replace('[','')
+    
+    # record = collection.find_one({ id: recordid})
+    # print(record)
+   
     resp = {
         "product-id": "00101",
         "display-name": "Postman Oxford",
