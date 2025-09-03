@@ -1,4 +1,5 @@
 import os
+import string
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -269,6 +270,10 @@ def chat(payload: ChatRequest):
     #print(result["output"])
     metadata = [ast.literal_eval(item) for item in metadata]
 
+    # index = response.content.find("I don't know")
+    # if index == -1:
+    #     metadata = []
+   
     
     print(metadata)
     return {
